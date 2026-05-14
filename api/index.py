@@ -205,8 +205,11 @@ def get_youtube_video(url):
             'skip_download': True,
             'format': 'best',
             'noplaylist': True,
-            'cookiefile': ytcookies_path if os.path.exists(ytcookies_path) else None,
+            'no_cache_dir': True,
+            'cachedir': False,
         }
+        if os.path.isfile(ytcookies_path):
+            ydl_opts['cookiefile'] = ytcookies_path
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', 'Unknown Title')
