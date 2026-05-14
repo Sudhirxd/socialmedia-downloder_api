@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 import requests
 import re
+import os
+import http.cookiejar
 from bs4 import BeautifulSoup
 import html as html_lib
 from user_agent import generate_user_agent
@@ -57,7 +59,16 @@ def download_insta_reel(url):
         if not match:
             return {"status": "error", "message": "Invalid Instagram URL", "dev": "sudhirxd.in"}
         shortcode = match.group(1)
+
         L = instaloader.Instaloader()
+
+        # Load cookies.txt from repo root
+        cookies_path = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
+        if os.path.exists(cookies_path):
+            cj = http.cookiejar.MozillaCookieJar()
+            cj.load(cookies_path, ignore_discard=True, ignore_expires=True)
+            L.context._session.cookies.update(cj)
+
         post = instaloader.Post.from_shortcode(L.context, shortcode)
         if not post.is_video:
             return {
