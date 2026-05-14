@@ -41,21 +41,21 @@ def get_fb_video(url):
                 "hd": hd,
                 "sd": sd
             },
-            "dev": "Basic Coders"
+            "dev": "sudhirxd.in"
         }
     except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Request timed out", "dev": "Basic Coders"}
+        return {"status": "error", "message": "Request timed out", "dev": "sudhirxd.in"}
     except (KeyError, ValueError):
-        return {"status": "error", "message": "Unexpected response format", "dev": "Basic Coders"}
+        return {"status": "error", "message": "Unexpected response format", "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Facebook video not found: {str(e)}", "dev": "Basic Coders"}
+        return {"status": "error", "message": f"Facebook video not found: {str(e)}", "dev": "sudhirxd.in"}
 
 
 def download_insta_reel(url):
     try:
         match = re.search(r'instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)', url)
         if not match:
-            return {"status": "error", "message": "Invalid Instagram URL", "dev": "Basic Coders"}
+            return {"status": "error", "message": "Invalid Instagram URL", "dev": "sudhirxd.in"}
         shortcode = match.group(1)
         L = instaloader.Instaloader()
         post = instaloader.Post.from_shortcode(L.context, shortcode)
@@ -65,7 +65,7 @@ def download_insta_reel(url):
                 "type": "image",
                 "image": post.url,
                 "caption": post.caption or "",
-                "dev": "Basic Coders"
+                "dev": "sudhirxd.in"
             }
         return {
             "status": "success",
@@ -74,12 +74,12 @@ def download_insta_reel(url):
             "thumbnail": post.url,
             "caption": post.caption or "",
             "views": post.video_view_count,
-            "dev": "Basic Coders"
+            "dev": "sudhirxd.in"
         }
     except instaloader.exceptions.InstaloaderException as e:
-        return {"status": "error", "message": f"Reel not found or private: {str(e)}", "dev": "Basic Coders"}
+        return {"status": "error", "message": f"Reel not found or private: {str(e)}", "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Instagram request failed: {str(e)}", "dev": "Basic Coders"}
+        return {"status": "error", "message": f"Instagram request failed: {str(e)}", "dev": "sudhirxd.in"}
 
 
 def _clean_link(link):
@@ -111,13 +111,13 @@ def download_snapchat(url):
                 "status": "success",
                 "video": video_links[0] if video_links else None,
                 "image": image_links[0] if image_links else None,
-                "dev": "Basic Coders"
+                "dev": "sudhirxd.in"
             }
-        return {"status": "error", "message": "Invalid Snapchat URL", "dev": "Basic Coders"}
+        return {"status": "error", "message": "Invalid Snapchat URL", "dev": "sudhirxd.in"}
     except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Request timed out", "dev": "Basic Coders"}
+        return {"status": "error", "message": "Request timed out", "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to fetch Snapchat data: {str(e)}", "dev": "Basic Coders"}
+        return {"status": "error", "message": f"Failed to fetch Snapchat data: {str(e)}", "dev": "sudhirxd.in"}
 
 
 def get_pinterest_download_links(url):
@@ -131,25 +131,25 @@ def get_pinterest_download_links(url):
         response = requests.post('https://www.expertstool.com/download-pinterest-video-online/', headers=headers, data={'url': url}, timeout=20)
         html = response.text
         if "API Not Work" in html or "Invalid" in html:
-            return {"status": "error", "message": "Invalid Pinterest URL", "dev": "Basic Coders"}
+            return {"status": "error", "message": "Invalid Pinterest URL", "dev": "sudhirxd.in"}
         soup = BeautifulSoup(html, 'html.parser')
         for btn in soup.find_all('a', class_=re.compile(r'btn.*primary')):
             href = btn.get('href', '')
             if href.startswith('https://v') and '.mp4' in href:
-                return {"status": "success", "video": href, "dev": "Basic Coders"}
+                return {"status": "success", "video": href, "dev": "sudhirxd.in"}
         for img in soup.find_all('a', href=re.compile(r'pinimg\.com.*originals')):
-            return {"status": "success", "photo": img['href'], "dev": "Basic Coders"}
-        return {"status": "error", "message": "No media found", "dev": "Basic Coders"}
+            return {"status": "success", "photo": img['href'], "dev": "sudhirxd.in"}
+        return {"status": "error", "message": "No media found", "dev": "sudhirxd.in"}
     except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Request timed out", "dev": "Basic Coders"}
+        return {"status": "error", "message": "Request timed out", "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Pinterest request failed: {str(e)}", "dev": "Basic Coders"}
+        return {"status": "error", "message": f"Pinterest request failed: {str(e)}", "dev": "sudhirxd.in"}
 
 
 def get_url_param():
     url = request.values.get("video", "").strip()
     if not url:
-        return None, jsonify({"status": "error", "message": "Missing 'video' parameter", "dev": "Basic Coders"})
+        return None, jsonify({"status": "error", "message": "Missing 'video' parameter", "dev": "sudhirxd.in"})
     return url, None
 
 
