@@ -260,9 +260,76 @@ def get_youtube_video(url):
         return {"status": "error", "message": f"YouTube fetch failed: {str(e)}", "dev": "sudhirxd.in"}
 
 
+
+
+def get_generic_video(url):
+    try:
+        import yt_dlp, shutil
+        src_cookies = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
+        tmp_cookies = '/tmp/ytcookies.txt'
+        if os.path.isfile(src_cookies) and not os.path.isfile(tmp_cookies):
+            shutil.copy2(src_cookies, tmp_cookies)
+
+        ydl_opts = {
+            'quiet': True,
+            'skip_download': True,
+            'format': 'best',
+            'noplaylist': True,
+            'no_cache_dir': True,
+            'cachedir': False,
+        }
+        if os.path.isfile(tmp_cookies):
+            ydl_opts['cookiefile'] = tmp_cookies
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            title = info.get('title', 'Unknown Title')
+            author = info.get('uploader') or info.get('channel') or info.get('creator', 'Unknown Author')
+            duration_sec = info.get('duration', 0) or 0
+            thumbnail = info.get('thumbnail', '')
+            mins = int(duration_sec // 60)
+            secs = int(duration_sec % 60)
+            duration_str = f"{mins:02d}:{secs:02d}"
+            formats = info.get('formats', [])
+
+            def get_url_by_height(h):
+                for f in reversed(formats):
+                    if f.get('height') == h and f.get('url'):
+                        return f['url']
+                return None
+
+            hd = get_url_by_height(720) or info.get('url', 'Not available')
+            sd = get_url_by_height(360) or 'Not available'
+            audio = next((f['url'] for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), 'Not available')
+
+            return {
+                "status": "success",
+                "platform": info.get('extractor_key', 'Unknown'),
+                "video": {
+                    "title": title,
+                    "author": author,
+                    "duration": duration_str,
+                    "thumbnail": thumbnail,
+                    "hd": hd,
+                    "sd": sd,
+                    "audio": audio
+                },
+                "dev": "sudhirxd.in"
+            }
+    except Exception as e:
+        return {"status": "error", "message": f"Download failed: {str(e)}", "dev": "sudhirxd.in"}
+
 @app.route('/yt', methods=['GET', 'POST'])
 @app.route('/api/yt', methods=['GET', 'POST'])
 def yt():
     url, err = get_url_param()
     if err: return err
     return jsonify(get_youtube_video(url))
+
+
+@app.route('/dl', methods=['GET', 'POST'])
+@app.route('/api/dl', methods=['GET', 'POST'])
+def dl():
+    url, err = get_url_param()
+    if err: return err
+    return jsonify(get_generic_video(url))
