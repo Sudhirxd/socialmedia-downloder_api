@@ -1,17 +1,20 @@
 from flask import Flask, request, jsonify
-import requests
-import re
-import os
-import shutil
+import requests, re, os, shutil, time
 import http.cookiejar
 from bs4 import BeautifulSoup
-import html as html_lib
 from user_agent import generate_user_agent
 import instaloader
 
 app = Flask(__name__)
 
+# -------------------- COMMON --------------------
+def get_url_param():
+    url = request.values.get("video", "").strip()
+    if not url:
+        return None, jsonify({"status": "error", "message": "Missing 'video' parameter", "dev": "sudhirxd.in"})
+    return url, None
 
+# -------------------- FACEBOOK --------------------
 def get_fb_video(url):
     headers = {
         'User-Agent': generate_user_agent(),
@@ -21,330 +24,191 @@ def get_fb_video(url):
     try:
         r = requests.post('https://fbdown.blog/get.php', headers=headers, data={'url': url}, timeout=15)
         data = r.json()['data']
-        title = data.get("title", "Unknown Title")
-        author = data.get("author", "Unknown Author")
-        duration_sec = data.get("duration", 0)
-        thumbnail = data.get("thumbnail", "")
-        mins = int(duration_sec // 60)
-        secs = int(duration_sec % 60)
-        duration_str = f"{mins:02d}:{secs:02d}"
+
         hd = sd = "Not available"
         for m in data.get("medias", []):
             if m.get("quality") == "HD":
                 hd = m["url"]
-            elif m.get("quality") == "SD" and sd == "Not available":
+            elif m.get("quality") == "SD":
                 sd = m["url"]
+
         return {
             "status": "success",
             "video": {
-                "title": title,
-                "author": author,
-                "duration": duration_str,
-                "thumbnail": thumbnail,
+                "title": data.get("title"),
+                "author": data.get("author"),
+                "duration": data.get("duration"),
+                "thumbnail": data.get("thumbnail"),
                 "hd": hd,
                 "sd": sd
             },
             "dev": "sudhirxd.in"
         }
-    except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Request timed out", "dev": "sudhirxd.in"}
-    except (KeyError, ValueError):
-        return {"status": "error", "message": "Unexpected response format", "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Facebook video not found: {str(e)}", "dev": "sudhirxd.in"}
+        return {"status": "error", "message": f"Facebook error: {str(e)}", "dev": "sudhirxd.in"}
 
-
+# -------------------- INSTAGRAM --------------------
 def download_insta_reel(url):
     try:
         match = re.search(r'instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)', url)
         if not match:
             return {"status": "error", "message": "Invalid Instagram URL", "dev": "sudhirxd.in"}
-        shortcode = match.group(1)
 
+        shortcode = match.group(1)
         L = instaloader.Instaloader()
 
-        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cookies.txt')
-        tmp = '/tmp/insta_cookies.txt'
+        src = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
+        tmp = '/tmp/insta.txt'
         if os.path.isfile(src):
             shutil.copy2(src, tmp)
+
         if os.path.isfile(tmp):
             cj = http.cookiejar.MozillaCookieJar()
             cj.load(tmp, ignore_discard=True, ignore_expires=True)
             L.context._session.cookies.update(cj)
 
         post = instaloader.Post.from_shortcode(L.context, shortcode)
-        if not post.is_video:
-            return {
-                "status": "success",
-                "type": "image",
-                "image": post.url,
-                "caption": post.caption or "",
-                "dev": "sudhirxd.in"
-            }
+
         return {
             "status": "success",
-            "type": "video",
-            "video": post.video_url,
-            "thumbnail": post.url,
-            "caption": post.caption or "",
-            "views": post.video_view_count,
+            "type": "video" if post.is_video else "image",
+            "video": post.video_url if post.is_video else None,
+            "image": post.url,
+            "caption": post.caption,
             "dev": "sudhirxd.in"
         }
-    except instaloader.exceptions.InstaloaderException as e:
-        return {"status": "error", "message": f"Reel not found or private: {str(e)}", "dev": "sudhirxd.in"}
+
     except Exception as e:
-        return {"status": "error", "message": f"Instagram request failed: {str(e)}", "dev": "sudhirxd.in"}
+        return {"status": "error", "message": f"Instagram error: {str(e)}", "dev": "sudhirxd.in"}
 
-
-def _clean_link(link):
-    if not link:
-        return None
-    link = link.replace("\\u0026", "&").replace("&quot;", "").strip()
-    return link.split(",mediaPreviewUrl:")[0].rstrip("&")
-
-
+# -------------------- SNAPCHAT --------------------
 def download_snapchat(url):
-    headers = {
-        "authority": "www.expertstool.com",
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "content-type": "application/x-www-form-urlencoded",
-        "origin": "https://www.expertstool.com",
-        "referer": "https://www.expertstool.com/snapchat-video-downloader/",
-        "user-agent": generate_user_agent()
-    }
     try:
-        response = requests.post("https://www.expertstool.com/converter.php", headers=headers, data={"url": url}, timeout=20)
-        html = response.text
-        video_links = [_clean_link(v) for v in re.findall(r'<source[^>]+src="(https?://[^"]+)"', html) if _clean_link(v)]
-        image_links = list(set([
-            _clean_link(i[1]) for i in re.findall(r'(poster|src)="(https?://[^"]+)"', html)
-            if _clean_link(i[1]) and '.mp4' not in i[1].lower()
-        ]))
-        if video_links or image_links:
-            return {
-                "status": "success",
-                "video": video_links[0] if video_links else None,
-                "image": image_links[0] if image_links else None,
-                "dev": "sudhirxd.in"
-            }
-        return {"status": "error", "message": "Invalid Snapchat URL", "dev": "sudhirxd.in"}
-    except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Request timed out", "dev": "sudhirxd.in"}
+        headers = {"user-agent": generate_user_agent()}
+        r = requests.post("https://www.expertstool.com/converter.php", headers=headers, data={"url": url})
+        video = re.findall(r'<source[^>]+src="(https?://[^"]+)"', r.text)
+        return {"status": "success", "video": video[0] if video else None, "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to fetch Snapchat data: {str(e)}", "dev": "sudhirxd.in"}
+        return {"status": "error", "message": str(e), "dev": "sudhirxd.in"}
 
-
+# -------------------- PINTEREST --------------------
 def get_pinterest_download_links(url):
-    headers = {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'origin': 'https://www.expertstool.com',
-        'referer': 'https://www.expertstool.com/download-pinterest-video-online/',
-        'user-agent': generate_user_agent(),
-    }
     try:
-        response = requests.post('https://www.expertstool.com/download-pinterest-video-online/', headers=headers, data={'url': url}, timeout=20)
-        html = response.text
-        if "API Not Work" in html or "Invalid" in html:
-            return {"status": "error", "message": "Invalid Pinterest URL", "dev": "sudhirxd.in"}
-        soup = BeautifulSoup(html, 'html.parser')
-        for btn in soup.find_all('a', class_=re.compile(r'btn.*primary')):
-            href = btn.get('href', '')
-            if href.startswith('https://v') and '.mp4' in href:
-                return {"status": "success", "video": href, "dev": "sudhirxd.in"}
-        for img in soup.find_all('a', href=re.compile(r'pinimg\.com.*originals')):
-            return {"status": "success", "photo": img['href'], "dev": "sudhirxd.in"}
-        return {"status": "error", "message": "No media found", "dev": "sudhirxd.in"}
-    except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Request timed out", "dev": "sudhirxd.in"}
+        r = requests.post('https://www.expertstool.com/download-pinterest-video-online/', data={'url': url})
+        video = re.findall(r'href="(https://v[^"]+\.mp4)"', r.text)
+        return {"status": "success", "video": video[0] if video else None, "dev": "sudhirxd.in"}
     except Exception as e:
-        return {"status": "error", "message": f"Pinterest request failed: {str(e)}", "dev": "sudhirxd.in"}
+        return {"status": "error", "message": str(e), "dev": "sudhirxd.in"}
 
-
+# -------------------- YOUTUBE (FIXED) --------------------
 def get_youtube_video(url):
     try:
         import yt_dlp
-        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
-        tmp = '/tmp/ytcookies.txt'
+
+        src = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
+        tmp = '/tmp/yt.txt'
         if os.path.isfile(src):
             shutil.copy2(src, tmp)
 
         ydl_opts = {
-            'quiet': True,
-            'skip_download': True,
-            'noplaylist': True,
-            'no_cache_dir': True,
-            'cachedir': False,
-            'cookiefile': tmp if os.path.isfile(tmp) else None,
+            "quiet": True,
+            "skip_download": True,
+            "format": "bv*+ba/best",
+            "extractor_args": {
+                "youtube": {"player_client": ["android", "web"]}
+            },
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0"
+            }
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown Title')
-            author = info.get('uploader') or info.get('channel', 'Unknown Author')
-            duration_sec = info.get('duration', 0) or 0
-            thumbnail = info.get('thumbnail', '')
-            mins = int(duration_sec // 60)
-            secs = int(duration_sec % 60)
-            duration_str = f"{mins:02d}:{secs:02d}"
-            formats = info.get('formats', [])
+        if os.path.isfile(tmp):
+            ydl_opts["cookiefile"] = tmp
 
-            video_formats = [
-                {
-                    "quality": str(f.get('height', '')) + 'p' if f.get('height') else f.get('format_note', f.get('format_id', '')),
-                    "ext": f.get('ext'),
-                    "url": f.get('url')
-                }
-                for f in formats
-                if f.get('vcodec') != 'none' and f.get('url')
-            ]
-            audio_formats = [
-                {
-                    "quality": str(f.get('abr', '')) + 'k' if f.get('abr') else f.get('format_note', f.get('format_id', '')),
-                    "ext": f.get('ext'),
-                    "url": f.get('url')
-                }
-                for f in formats
-                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
-            ]
+        for i in range(3):
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                break
+            except:
+                time.sleep(3)
 
-            return {
-                "status": "success",
-                "video": {
-                    "title": title,
-                    "author": author,
-                    "duration": duration_str,
-                    "thumbnail": thumbnail,
-                    "formats": video_formats,
-                    "audio": audio_formats
-                },
-                "dev": "sudhirxd.in"
-            }
+        formats = info.get("formats", [])
+
+        video = [f for f in formats if f.get("vcodec") != "none" and f.get("url")]
+        audio = [f for f in formats if f.get("acodec") != "none" and f.get("vcodec") == "none"]
+
+        return {
+            "status": "success",
+            "video": {
+                "title": info.get("title"),
+                "thumbnail": info.get("thumbnail"),
+                "formats": video[-5:],
+                "audio": audio[-3:]
+            },
+            "dev": "sudhirxd.in"
+        }
+
     except Exception as e:
-        return {"status": "error", "message": f"YouTube fetch failed: {str(e)}", "dev": "sudhirxd.in"}
+        return {"status": "error", "message": f"YouTube error: {str(e)}", "dev": "sudhirxd.in"}
 
-
+# -------------------- GENERIC --------------------
 def get_generic_video(url):
     try:
         import yt_dlp
-        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
-        tmp = '/tmp/ytcookies.txt'
-        if os.path.isfile(src):
-            shutil.copy2(src, tmp)
+        with yt_dlp.YoutubeDL({"quiet": True, "format": "best"}) as ydl:
+            info = ydl.extract_info(url, download=False)
 
-        ydl_opts = {
-            'quiet': True,
-            'skip_download': True,
-            'noplaylist': True,
-            'no_cache_dir': True,
-            'cachedir': False,
-            'cookiefile': tmp if os.path.isfile(tmp) else None,
+        return {
+            "status": "success",
+            "platform": info.get("extractor_key"),
+            "video": {
+                "title": info.get("title"),
+                "url": info.get("url")
+            },
+            "dev": "sudhirxd.in"
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown Title')
-            author = info.get('uploader') or info.get('channel') or info.get('creator', 'Unknown Author')
-            duration_sec = info.get('duration', 0) or 0
-            thumbnail = info.get('thumbnail', '')
-            mins = int(duration_sec // 60)
-            secs = int(duration_sec % 60)
-            duration_str = f"{mins:02d}:{secs:02d}"
-            formats = info.get('formats', [])
-
-            video_formats = [
-                {
-                    "quality": str(f.get('height', '')) + 'p' if f.get('height') else f.get('format_note', f.get('format_id', '')),
-                    "ext": f.get('ext'),
-                    "url": f.get('url')
-                }
-                for f in formats
-                if f.get('vcodec') != 'none' and f.get('url')
-            ]
-            audio_formats = [
-                {
-                    "quality": str(f.get('abr', '')) + 'k' if f.get('abr') else f.get('format_note', f.get('format_id', '')),
-                    "ext": f.get('ext'),
-                    "url": f.get('url')
-                }
-                for f in formats
-                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
-            ]
-
-            return {
-                "status": "success",
-                "platform": info.get('extractor_key', 'Unknown'),
-                "video": {
-                    "title": title,
-                    "author": author,
-                    "duration": duration_str,
-                    "thumbnail": thumbnail,
-                    "formats": video_formats,
-                    "audio": audio_formats
-                },
-                "dev": "sudhirxd.in"
-            }
     except Exception as e:
-        return {"status": "error", "message": f"Download failed: {str(e)}", "dev": "sudhirxd.in"}
+        return {"status": "error", "message": str(e), "dev": "sudhirxd.in"}
 
-
-def get_url_param():
-    url = request.values.get("video", "").strip()
-    if not url:
-        return None, jsonify({"status": "error", "message": "Missing 'video' parameter", "dev": "sudhirxd.in"})
-    return url, None
-
-
+# -------------------- ROUTES --------------------
 @app.route('/fb', methods=['GET', 'POST'])
-@app.route('/api/fb', methods=['GET', 'POST'])
 def fb():
     url, err = get_url_param()
     if err: return err
     return jsonify(get_fb_video(url))
 
-
 @app.route('/insta', methods=['GET', 'POST'])
-@app.route('/api/insta', methods=['GET', 'POST'])
 def insta():
     url, err = get_url_param()
     if err: return err
     return jsonify(download_insta_reel(url))
 
-
 @app.route('/snap', methods=['GET', 'POST'])
-@app.route('/api/snap', methods=['GET', 'POST'])
 def snap():
     url, err = get_url_param()
     if err: return err
     return jsonify(download_snapchat(url))
 
-
 @app.route('/pin', methods=['GET', 'POST'])
-@app.route('/api/pin', methods=['GET', 'POST'])
 def pin():
     url, err = get_url_param()
     if err: return err
     return jsonify(get_pinterest_download_links(url))
 
-
 @app.route('/yt', methods=['GET', 'POST'])
-@app.route('/api/yt', methods=['GET', 'POST'])
 def yt():
     url, err = get_url_param()
     if err: return err
     return jsonify(get_youtube_video(url))
 
-
 @app.route('/dl', methods=['GET', 'POST'])
-@app.route('/api/dl', methods=['GET', 'POST'])
 def dl():
     url, err = get_url_param()
     if err: return err
-    if 'instagram.com' in url:
-        return jsonify(download_insta_reel(url))
-    if 'facebook.com' in url or 'fb.watch' in url:
-        return jsonify(get_fb_video(url))
-    if 'snapchat.com' in url:
-        return jsonify(download_snapchat(url))
-    if 'pinterest.com' in url or 'pin.it' in url:
-        return jsonify(get_pinterest_download_links(url))
     return jsonify(get_generic_video(url))
+
+# -------------------- RUN --------------------
+if __name__ == "__main__":
+    app.run(debug=True)
