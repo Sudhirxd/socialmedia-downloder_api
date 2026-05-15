@@ -62,11 +62,15 @@ def download_insta_reel(url):
 
         L = instaloader.Instaloader()
 
-        # Load cookies.txt from repo root
-        cookies_path = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
-        if os.path.exists(cookies_path):
+        # Load cookies.txt — copy to /tmp first (Vercel read-only fs)
+        src_cookies = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
+        tmp_cookies = '/tmp/insta_cookies.txt'
+        if os.path.isfile(src_cookies) and not os.path.isfile(tmp_cookies):
+            import shutil
+            shutil.copy2(src_cookies, tmp_cookies)
+        if os.path.isfile(tmp_cookies):
             cj = http.cookiejar.MozillaCookieJar()
-            cj.load(cookies_path, ignore_discard=True, ignore_expires=True)
+            cj.load(tmp_cookies, ignore_discard=True, ignore_expires=True)
             L.context._session.cookies.update(cj)
 
         post = instaloader.Post.from_shortcode(L.context, shortcode)
@@ -199,7 +203,13 @@ def pin():
 def get_youtube_video(url):
     try:
         import yt_dlp
-        ytcookies_path = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
+        # Copy cookies to /tmp (only writable dir on Vercel)
+        src_cookies = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
+        tmp_cookies = '/tmp/ytcookies.txt'
+        if os.path.isfile(src_cookies) and not os.path.isfile(tmp_cookies):
+            import shutil
+            shutil.copy2(src_cookies, tmp_cookies)
+
         ydl_opts = {
             'quiet': True,
             'skip_download': True,
@@ -208,8 +218,8 @@ def get_youtube_video(url):
             'no_cache_dir': True,
             'cachedir': False,
         }
-        if os.path.isfile(ytcookies_path):
-            ydl_opts['cookiefile'] = ytcookies_path
+        if os.path.isfile(tmp_cookies):
+            ydl_opts['cookiefile'] = tmp_cookies
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', 'Unknown Title')
