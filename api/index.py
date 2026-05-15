@@ -233,23 +233,24 @@ def get_youtube_video(url):
             # Get best video+audio, 720p, 360p separately
             formats = info.get('formats', [])
 
-            # Sort formats by quality
-            video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('url')]
-            audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')]
-
-            def best_by_height(h):
-                # exact match first, then closest
-                exact = [f for f in video_formats if f.get('height') == h]
-                if exact:
-                    return exact[-1]['url']
-                below = [f for f in video_formats if (f.get('height') or 0) <= h]
-                if below:
-                    return sorted(below, key=lambda f: f.get('height') or 0)[-1]['url']
-                return video_formats[-1]['url'] if video_formats else 'Not available'
-
-            hd = best_by_height(720)
-            sd = best_by_height(360)
-            audio = audio_formats[-1]['url'] if audio_formats else 'Not available'
+            video_formats = [
+                {
+                    "quality": f.get('format_note') or f.get('height') or f.get('format_id'),
+                    "ext": f.get('ext'),
+                    "url": f.get('url')
+                }
+                for f in formats
+                if f.get('vcodec') != 'none' and f.get('url')
+            ]
+            audio_formats = [
+                {
+                    "quality": f.get('format_note') or f.get('abr') or f.get('format_id'),
+                    "ext": f.get('ext'),
+                    "url": f.get('url')
+                }
+                for f in formats
+                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
+            ]
 
             return {
                 "status": "success",
@@ -258,9 +259,8 @@ def get_youtube_video(url):
                     "author": author,
                     "duration": duration_str,
                     "thumbnail": thumbnail,
-                    "hd": hd,
-                    "sd": sd,
-                    "audio": audio
+                    "formats": video_formats,
+                    "audio": audio_formats
                 },
                 "dev": "sudhirxd.in"
             }
