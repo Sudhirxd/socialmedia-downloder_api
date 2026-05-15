@@ -63,10 +63,13 @@ def download_insta_reel(url):
 
         L = instaloader.Instaloader()
 
-        cookies_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cookies.txt')
-        if os.path.isfile(cookies_file):
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cookies.txt')
+        tmp = '/tmp/insta_cookies.txt'
+        if os.path.isfile(src):
+            shutil.copy2(src, tmp)
+        if os.path.isfile(tmp):
             cj = http.cookiejar.MozillaCookieJar()
-            cj.load(cookies_file, ignore_discard=True, ignore_expires=True)
+            cj.load(tmp, ignore_discard=True, ignore_expires=True)
             L.context._session.cookies.update(cj)
 
         post = instaloader.Post.from_shortcode(L.context, shortcode)
@@ -160,7 +163,10 @@ def get_pinterest_download_links(url):
 def get_youtube_video(url):
     try:
         import yt_dlp
-        cookies_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
+        tmp = '/tmp/ytcookies.txt'
+        if os.path.isfile(src):
+            shutil.copy2(src, tmp)
 
         ydl_opts = {
             'quiet': True,
@@ -168,9 +174,8 @@ def get_youtube_video(url):
             'noplaylist': True,
             'no_cache_dir': True,
             'cachedir': False,
+            'cookiefile': tmp if os.path.isfile(tmp) else None,
         }
-        if os.path.isfile(cookies_file):
-            ydl_opts['cookiefile'] = cookies_file
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -221,7 +226,10 @@ def get_youtube_video(url):
 def get_generic_video(url):
     try:
         import yt_dlp
-        cookies_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
+        tmp = '/tmp/ytcookies.txt'
+        if os.path.isfile(src):
+            shutil.copy2(src, tmp)
 
         ydl_opts = {
             'quiet': True,
@@ -229,9 +237,8 @@ def get_generic_video(url):
             'noplaylist': True,
             'no_cache_dir': True,
             'cachedir': False,
+            'cookiefile': tmp if os.path.isfile(tmp) else None,
         }
-        if os.path.isfile(cookies_file):
-            ydl_opts['cookiefile'] = cookies_file
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
