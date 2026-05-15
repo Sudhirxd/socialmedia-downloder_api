@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import requests
 import re
 import os
+import shutil
 import http.cookiejar
 from bs4 import BeautifulSoup
 import html as html_lib
@@ -62,12 +63,10 @@ def download_insta_reel(url):
 
         L = instaloader.Instaloader()
 
-        # Load cookies.txt — copy to /tmp first (Vercel read-only fs)
-        src_cookies = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
+        src_cookies = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cookies.txt')
         tmp_cookies = '/tmp/insta_cookies.txt'
-        if os.path.isfile(src_cookies) and not os.path.isfile(tmp_cookies):
-            import shutil
-            shutil.copy2(src_cookies, tmp_cookies)
+        if os.path.isfile(src_cookies):
+            shutil.copy2(src_cookies, tmp_cookies)  # always overwrite
         if os.path.isfile(tmp_cookies):
             cj = http.cookiejar.MozillaCookieJar()
             cj.load(tmp_cookies, ignore_discard=True, ignore_expires=True)
@@ -161,6 +160,135 @@ def get_pinterest_download_links(url):
         return {"status": "error", "message": f"Pinterest request failed: {str(e)}", "dev": "sudhirxd.in"}
 
 
+def get_youtube_video(url):
+    try:
+        import yt_dlp
+        src_cookies = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
+        tmp_cookies = '/tmp/ytcookies.txt'
+        if os.path.isfile(src_cookies):
+            shutil.copy2(src_cookies, tmp_cookies)  # always overwrite
+
+        ydl_opts = {
+            'quiet': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'no_cache_dir': True,
+            'cachedir': False,
+        }
+        if os.path.isfile(tmp_cookies):
+            ydl_opts['cookiefile'] = tmp_cookies
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            title = info.get('title', 'Unknown Title')
+            author = info.get('uploader') or info.get('channel', 'Unknown Author')
+            duration_sec = info.get('duration', 0) or 0
+            thumbnail = info.get('thumbnail', '')
+            mins = int(duration_sec // 60)
+            secs = int(duration_sec % 60)
+            duration_str = f"{mins:02d}:{secs:02d}"
+            formats = info.get('formats', [])
+
+            video_formats = [
+                {
+                    "quality": str(f.get('height', '')) + 'p' if f.get('height') else f.get('format_note', f.get('format_id', '')),
+                    "ext": f.get('ext'),
+                    "url": f.get('url')
+                }
+                for f in formats
+                if f.get('vcodec') != 'none' and f.get('url')
+            ]
+            audio_formats = [
+                {
+                    "quality": str(f.get('abr', '')) + 'k' if f.get('abr') else f.get('format_note', f.get('format_id', '')),
+                    "ext": f.get('ext'),
+                    "url": f.get('url')
+                }
+                for f in formats
+                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
+            ]
+
+            return {
+                "status": "success",
+                "video": {
+                    "title": title,
+                    "author": author,
+                    "duration": duration_str,
+                    "thumbnail": thumbnail,
+                    "formats": video_formats,
+                    "audio": audio_formats
+                },
+                "dev": "sudhirxd.in"
+            }
+    except Exception as e:
+        return {"status": "error", "message": f"YouTube fetch failed: {str(e)}", "dev": "sudhirxd.in"}
+
+
+def get_generic_video(url):
+    try:
+        import yt_dlp
+        src_cookies = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ytcookies.txt')
+        tmp_cookies = '/tmp/ytcookies.txt'
+        if os.path.isfile(src_cookies):
+            shutil.copy2(src_cookies, tmp_cookies)  # always overwrite
+
+        ydl_opts = {
+            'quiet': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'no_cache_dir': True,
+            'cachedir': False,
+        }
+        if os.path.isfile(tmp_cookies):
+            ydl_opts['cookiefile'] = tmp_cookies
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            title = info.get('title', 'Unknown Title')
+            author = info.get('uploader') or info.get('channel') or info.get('creator', 'Unknown Author')
+            duration_sec = info.get('duration', 0) or 0
+            thumbnail = info.get('thumbnail', '')
+            mins = int(duration_sec // 60)
+            secs = int(duration_sec % 60)
+            duration_str = f"{mins:02d}:{secs:02d}"
+            formats = info.get('formats', [])
+
+            video_formats = [
+                {
+                    "quality": str(f.get('height', '')) + 'p' if f.get('height') else f.get('format_note', f.get('format_id', '')),
+                    "ext": f.get('ext'),
+                    "url": f.get('url')
+                }
+                for f in formats
+                if f.get('vcodec') != 'none' and f.get('url')
+            ]
+            audio_formats = [
+                {
+                    "quality": str(f.get('abr', '')) + 'k' if f.get('abr') else f.get('format_note', f.get('format_id', '')),
+                    "ext": f.get('ext'),
+                    "url": f.get('url')
+                }
+                for f in formats
+                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
+            ]
+
+            return {
+                "status": "success",
+                "platform": info.get('extractor_key', 'Unknown'),
+                "video": {
+                    "title": title,
+                    "author": author,
+                    "duration": duration_str,
+                    "thumbnail": thumbnail,
+                    "formats": video_formats,
+                    "audio": audio_formats
+                },
+                "dev": "sudhirxd.in"
+            }
+    except Exception as e:
+        return {"status": "error", "message": f"Download failed: {str(e)}", "dev": "sudhirxd.in"}
+
+
 def get_url_param():
     url = request.values.get("video", "").strip()
     if not url:
@@ -200,139 +328,6 @@ def pin():
     return jsonify(get_pinterest_download_links(url))
 
 
-def get_youtube_video(url):
-    try:
-        import yt_dlp
-        # Copy cookies to /tmp (only writable dir on Vercel)
-        src_cookies = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
-        tmp_cookies = '/tmp/ytcookies.txt'
-        if os.path.isfile(src_cookies) and not os.path.isfile(tmp_cookies):
-            import shutil
-            shutil.copy2(src_cookies, tmp_cookies)
-
-        ydl_opts = {
-            'quiet': True,
-            'skip_download': True,
-            'noplaylist': True,
-            'no_cache_dir': True,
-            'cachedir': False,
-        }
-        if os.path.isfile(tmp_cookies):
-            ydl_opts['cookiefile'] = tmp_cookies
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown Title')
-            author = info.get('uploader', 'Unknown Author')
-            duration_sec = info.get('duration', 0)
-            thumbnail = info.get('thumbnail', '')
-            mins = int(duration_sec // 60)
-            secs = int(duration_sec % 60)
-            duration_str = f"{mins:02d}:{secs:02d}"
-
-            # Get best video+audio, 720p, 360p separately
-            formats = info.get('formats', [])
-
-            video_formats = [
-                {
-                    "quality": f.get('format_note') or f.get('height') or f.get('format_id'),
-                    "ext": f.get('ext'),
-                    "url": f.get('url')
-                }
-                for f in formats
-                if f.get('vcodec') != 'none' and f.get('url')
-            ]
-            audio_formats = [
-                {
-                    "quality": f.get('format_note') or f.get('abr') or f.get('format_id'),
-                    "ext": f.get('ext'),
-                    "url": f.get('url')
-                }
-                for f in formats
-                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
-            ]
-
-            return {
-                "status": "success",
-                "video": {
-                    "title": title,
-                    "author": author,
-                    "duration": duration_str,
-                    "thumbnail": thumbnail,
-                    "formats": video_formats,
-                    "audio": audio_formats
-                },
-                "dev": "sudhirxd.in"
-            }
-    except Exception as e:
-        return {"status": "error", "message": f"YouTube fetch failed: {str(e)}", "dev": "sudhirxd.in"}
-
-
-
-
-def get_generic_video(url):
-    try:
-        import yt_dlp, shutil
-        src_cookies = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
-        tmp_cookies = '/tmp/ytcookies.txt'
-        if os.path.isfile(src_cookies) and not os.path.isfile(tmp_cookies):
-            shutil.copy2(src_cookies, tmp_cookies)
-
-        ydl_opts = {
-            'quiet': True,
-            'skip_download': True,
-            'noplaylist': True,
-            'no_cache_dir': True,
-            'cachedir': False,
-        }
-        if os.path.isfile(tmp_cookies):
-            ydl_opts['cookiefile'] = tmp_cookies
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown Title')
-            author = info.get('uploader') or info.get('channel') or info.get('creator', 'Unknown Author')
-            duration_sec = info.get('duration', 0) or 0
-            thumbnail = info.get('thumbnail', '')
-            mins = int(duration_sec // 60)
-            secs = int(duration_sec % 60)
-            duration_str = f"{mins:02d}:{secs:02d}"
-            formats = info.get('formats', [])
-
-            # Sort formats by quality
-            video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('url')]
-            audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')]
-
-            def best_by_height(h):
-                # exact match first, then closest
-                exact = [f for f in video_formats if f.get('height') == h]
-                if exact:
-                    return exact[-1]['url']
-                below = [f for f in video_formats if (f.get('height') or 0) <= h]
-                if below:
-                    return sorted(below, key=lambda f: f.get('height') or 0)[-1]['url']
-                return video_formats[-1]['url'] if video_formats else 'Not available'
-
-            hd = best_by_height(720)
-            sd = best_by_height(360)
-            audio = audio_formats[-1]['url'] if audio_formats else 'Not available'
-
-            return {
-                "status": "success",
-                "platform": info.get('extractor_key', 'Unknown'),
-                "video": {
-                    "title": title,
-                    "author": author,
-                    "duration": duration_str,
-                    "thumbnail": thumbnail,
-                    "hd": hd,
-                    "sd": sd,
-                    "audio": audio
-                },
-                "dev": "sudhirxd.in"
-            }
-    except Exception as e:
-        return {"status": "error", "message": f"Download failed: {str(e)}", "dev": "sudhirxd.in"}
-
 @app.route('/yt', methods=['GET', 'POST'])
 @app.route('/api/yt', methods=['GET', 'POST'])
 def yt():
@@ -346,4 +341,12 @@ def yt():
 def dl():
     url, err = get_url_param()
     if err: return err
+    if 'instagram.com' in url:
+        return jsonify(download_insta_reel(url))
+    if 'facebook.com' in url or 'fb.watch' in url:
+        return jsonify(get_fb_video(url))
+    if 'snapchat.com' in url:
+        return jsonify(download_snapchat(url))
+    if 'pinterest.com' in url or 'pin.it' in url:
+        return jsonify(get_pinterest_download_links(url))
     return jsonify(get_generic_video(url))
