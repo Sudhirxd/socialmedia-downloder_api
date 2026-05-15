@@ -1,3 +1,4 @@
+
 {
   "version": 2,
   "builds": [
@@ -11,6 +12,7 @@
     { "src": "/insta", "dest": "api/index.py" },
     { "src": "/snap", "dest": "api/index.py" },
     { "src": "/pin", "dest": "api/index.py" },
+    { "src": "/yt", "dest": "api/index.py" },
     { "src": "/(.*)", "dest": "api/index.py" }
   ]
 }
