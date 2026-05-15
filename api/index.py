@@ -233,15 +233,23 @@ def get_youtube_video(url):
             # Get best video+audio, 720p, 360p separately
             formats = info.get('formats', [])
 
-            def get_url_by_height(h):
-                for f in reversed(formats):
-                    if f.get('height') == h and f.get('url'):
-                        return f['url']
-                return None
+            # Sort formats by quality
+            video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('url')]
+            audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')]
 
-            hd = get_url_by_height(720) or info.get('url', 'Not available')
-            sd = get_url_by_height(360) or 'Not available'
-            audio = next((f['url'] for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), 'Not available')
+            def best_by_height(h):
+                # exact match first, then closest
+                exact = [f for f in video_formats if f.get('height') == h]
+                if exact:
+                    return exact[-1]['url']
+                below = [f for f in video_formats if (f.get('height') or 0) <= h]
+                if below:
+                    return sorted(below, key=lambda f: f.get('height') or 0)[-1]['url']
+                return video_formats[-1]['url'] if video_formats else 'Not available'
+
+            hd = best_by_height(720)
+            sd = best_by_height(360)
+            audio = audio_formats[-1]['url'] if audio_formats else 'Not available'
 
             return {
                 "status": "success",
@@ -292,15 +300,23 @@ def get_generic_video(url):
             duration_str = f"{mins:02d}:{secs:02d}"
             formats = info.get('formats', [])
 
-            def get_url_by_height(h):
-                for f in reversed(formats):
-                    if f.get('height') == h and f.get('url'):
-                        return f['url']
-                return None
+            # Sort formats by quality
+            video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('url')]
+            audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')]
 
-            hd = get_url_by_height(720) or info.get('url', 'Not available')
-            sd = get_url_by_height(360) or 'Not available'
-            audio = next((f['url'] for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), 'Not available')
+            def best_by_height(h):
+                # exact match first, then closest
+                exact = [f for f in video_formats if f.get('height') == h]
+                if exact:
+                    return exact[-1]['url']
+                below = [f for f in video_formats if (f.get('height') or 0) <= h]
+                if below:
+                    return sorted(below, key=lambda f: f.get('height') or 0)[-1]['url']
+                return video_formats[-1]['url'] if video_formats else 'Not available'
+
+            hd = best_by_height(720)
+            sd = best_by_height(360)
+            audio = audio_formats[-1]['url'] if audio_formats else 'Not available'
 
             return {
                 "status": "success",
