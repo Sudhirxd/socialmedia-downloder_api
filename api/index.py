@@ -94,12 +94,44 @@ def download_snapchat(url):
 # -------------------- PINTEREST --------------------
 def get_pinterest_download_links(url):
     try:
-        r = requests.post('https://www.expertstool.com/download-pinterest-video-online/', data={'url': url})
-        video = re.findall(r'href="(https://v[^"]+\.mp4)"', r.text)
-        return {"status": "success", "video": video[0] if video else None, "dev": "sudhirxd.in"}
-    except Exception as e:
-        return {"status": "error", "message": str(e), "dev": "sudhirxd.in"}
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.expertstool.com/"
+        }
 
+        r = requests.post(
+            "https://www.expertstool.com/download-pinterest-video-online-1/",
+            data={"url": url},
+            headers=headers,
+            timeout=20
+        )
+
+        video = re.findall(
+            r'https?:\/\/[^"\']+\.mp4[^"\']*',
+            r.text
+        )
+
+        if not video:
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            for tag in soup.find_all(["a", "source", "video"]):
+                href = tag.get("href") or tag.get("src")
+
+                if href and ".mp4" in href:
+                    video.append(href)
+
+        return {
+            "status": "success",
+            "video": video[0] if video else None,
+            "dev": "sudhirxd.in"
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "dev": "sudhirxd.in"
+        }
 # -------------------- YOUTUBE (FIXED) --------------------
 def get_youtube_video(url):
     try:
