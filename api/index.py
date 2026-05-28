@@ -136,39 +136,76 @@ def get_pinterest_download_links(url):
 def get_youtube_video(url):
     try:
         import yt_dlp
+        import tempfile
 
         src = os.path.join(os.path.dirname(__file__), '..', 'ytcookies.txt')
-        tmp = '/tmp/yt.txt'
-        if os.path.isfile(src):
-            shutil.copy2(src, tmp)
+
+        info = None
+        last_error = None
+        tmp = None
 
         ydl_opts = {
             "quiet": True,
             "skip_download": True,
             "format": "bv*+ba/best",
+            "noplaylist": True,
+            "socket_timeout": 15,
+            "retries": 10,
+            "fragment_retries": 10,
+            "extractor_retries": 10,
+            "nocheckcertificate": True,
             "extractor_args": {
-                "youtube": {"player_client": ["android", "web"]}
+                "youtube": {
+                    "player_client": ["android", "web"]
+                }
             },
             "http_headers": {
                 "User-Agent": "Mozilla/5.0"
             }
         }
 
-        if os.path.isfile(tmp):
+        if os.path.isfile(src):
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
+            tmp_file.close()
+
+            shutil.copy2(src, tmp_file.name)
+
+            tmp = tmp_file.name
             ydl_opts["cookiefile"] = tmp
 
         for i in range(3):
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
-                break
-            except:
+
+                if info:
+                    break
+
+            except Exception as e:
+                last_error = str(e)
                 time.sleep(3)
+
+        if not info:
+            return {
+                "status": "error",
+                "message": f"YouTube extraction failed: {last_error}",
+                "dev": "sudhirxd.in"
+            }
 
         formats = info.get("formats", [])
 
-        video = [f for f in formats if f.get("vcodec") != "none" and f.get("url")]
-        audio = [f for f in formats if f.get("acodec") != "none" and f.get("vcodec") == "none"]
+        video = [
+            f for f in formats
+            if f.get("vcodec") != "none"
+            and f.get("url")
+        ]
+
+        audio = [
+            f for f in formats
+            if f.get("acodec") != "none"
+            and f.get("vcodec") == "none"
+            and f.get("url")
+        ]
 
         return {
             "status": "success",
@@ -182,7 +219,18 @@ def get_youtube_video(url):
         }
 
     except Exception as e:
-        return {"status": "error", "message": f"YouTube error: {str(e)}", "dev": "sudhirxd.in"}
+        return {
+            "status": "error",
+            "message": f"YouTube error: {str(e)}",
+            "dev": "sudhirxd.in"
+        }
+
+    finally:
+        try:
+            if tmp and os.path.exists(tmp):
+                os.remove(tmp)
+        except:
+            pass
 
 # -------------------- GENERIC --------------------
 def get_generic_video(url):
