@@ -1,6 +1,4 @@
-flask
+Flask
 requests
 beautifulsoup4
 user-agent
-instaloader
-yt-dlp
