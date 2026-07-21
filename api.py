@@ -42,7 +42,7 @@ def get_fb_video(url):
                 "sd": sd
             },
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         }
     except:
@@ -50,7 +50,7 @@ def get_fb_video(url):
             "status": "error",
             "message": "Facebook video not found",
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         }
 
@@ -155,7 +155,7 @@ def download_insta_reel(url):
             results.append({
                 "Developer": "t.me/Sudhirxd",
                 "Download Link": download_url,
-                "Github": "www.github.com/sudheer729",
+                "Github": "www.github.com/Sudhirxd",
                 "Quality": quality,
                 "Title": title,
                 "Website": "www.sudhirxd.in"
@@ -203,7 +203,7 @@ def download_snapchat(url):
             "status": "error",
             "message": "Invalid Snapchat URL",
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         }
     except:
@@ -211,7 +211,7 @@ def download_snapchat(url):
             "status": "error",
             "message": "Failed to fetch Snapchat data",
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         }
 
@@ -231,7 +231,7 @@ def get_pinterest_download_links(url):
                 "status": "error",
                 "message": "Invalid Pinterest URL",
                 "Developer": "t.me/Sudhirxd",
-                "Github": "www.github.com/sudheer729",
+                "Github": "www.github.com/Sudhirxd",
                 "Website": "www.sudhirxd.in"
             }
         soup = BeautifulSoup(html, 'html.parser')
@@ -242,7 +242,7 @@ def get_pinterest_download_links(url):
                     "status": "success",
                     "video": href,
                     "Developer": "t.me/Sudhirxd",
-                    "Github": "www.github.com/sudheer729",
+                    "Github": "www.github.com/Sudhirxd",
                     "Website": "www.sudhirxd.in"
                 }
         for img in soup.find_all('a', href=re.compile(r'pinimg\.com.*originals')):
@@ -257,7 +257,7 @@ def get_pinterest_download_links(url):
             "status": "error",
             "message": "No media found",
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         }
     except:
@@ -265,7 +265,7 @@ def get_pinterest_download_links(url):
             "status": "error",
             "message": "Pinterest request failed",
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         }
 
@@ -279,7 +279,7 @@ def index():
             "Pinterest": "/pin?video=URL",
             "Snapchat": "/snap?video=URL"
         },
-        "Github": "www.github.com/sudheer729",
+        "Github": "www.github.com/Sudhirxd",
         "Website": "www.sudhirxd.in"
     })
 
