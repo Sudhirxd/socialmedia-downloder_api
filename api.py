@@ -197,7 +197,7 @@ def download_snapchat(url):
             "video": video_links[0] if video_links else None,
             "image": image_links[0] if image_links else None,
             "Developer": "t.me/Sudhirxd",
-            "Github": "www.github.com/sudheer729",
+            "Github": "www.github.com/Sudhirxd",
             "Website": "www.sudhirxd.in"
         } if video_links or image_links else {
             "status": "error",
@@ -250,7 +250,7 @@ def get_pinterest_download_links(url):
                 "status": "success",
                 "photo": img['href'],
                 "Developer": "t.me/Sudhirxd",
-                "Github": "www.github.com/sudheer729",
+                "Github": "www.github.com/Sudhirxd",
                 "Website": "www.sudhirxd.in"
             }
         return {
